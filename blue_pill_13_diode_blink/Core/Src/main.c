@@ -45,7 +45,8 @@
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-
+volatile uint8_t button_flag = 0;
+volatile int is_timer_running = 1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -107,9 +108,17 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if (button_flag == 1)
+	        {
+	            if (is_timer_running == 0) {
+	                printf("Timer stopped\r\n");
+	            } else {
+	                printf("Timer started\r\n");
+	            }
+	            button_flag = 0;
+	        }
     /* USER CODE END WHILE */
-	  printf("Hello Yurii! USB is working!\r\n");
-	  HAL_Delay(1000);
+
     /* USER CODE BEGIN 3 */
 
   }
@@ -234,20 +243,42 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PA0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-	{
+{
+    if(htim->Instance == TIM2){
+        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+    }
+}
 
-	  if(htim->Instance == TIM2){
-
-		  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	  }
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	if (GPIO_Pin == GPIO_PIN_0){
+		if (is_timer_running == 1){
+			HAL_TIM_Base_Stop_IT(&htim2);
+			is_timer_running = 0;
+		} else {
+			HAL_TIM_Base_Start_IT(&htim2);
+			is_timer_running = 1;
+		}
+		button_flag = 1;
 	}
+}
 /* USER CODE END 4 */
 
 /**
