@@ -46,7 +46,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-volatile uint32_t button_events = 0;
+volatile uint32_t button_pressed = 0;
 volatile uint32_t is_timer_running = 1;
 /* USER CODE END PV */
 
@@ -70,6 +70,7 @@ static inline void Critical_Exit(uint32_t primask)
 {
 	__DMB();
 	__set_PRIMASK(primask);
+  __enable_irq();
 }
 /* USER CODE END 0 */
 
@@ -118,12 +119,9 @@ int main(void)
   {
 	  uint32_t irq_state = Critical_Enter();
 
-	        uint32_t pending = button_events;
-	        button_events = 0;
-
 	        Critical_Exit(irq_state);
 
-	        while (pending > 0)
+	        if (button_pressed == 1)
 	        {
 	            if (is_timer_running == 1) {
 	                HAL_TIM_Base_Stop_IT(&htim2);
@@ -134,7 +132,7 @@ int main(void)
 	                printf("Timer started (No bounce!)\r\n");
 	                is_timer_running = 1;
 	            }
-	            pending--;
+	            button_pressed = 0;
 	        }
     /* USER CODE END WHILE */
 
@@ -209,11 +207,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     if(htim->Instance == TIM3){
         if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET) {
-            button_events++;
+            button_pressed = 1;
         }
 
         __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_0);
-
+        HAL_TIM_Base_Stop_IT(&htim3);
+        
         HAL_NVIC_EnableIRQ(EXTI0_IRQn);
     }
 }
